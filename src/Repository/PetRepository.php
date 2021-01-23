@@ -31,6 +31,22 @@ class PetRepository extends ServiceEntityRepository
         $this->validator = $validator;
     }
 
+    public function getPetById(int $petId)
+    {
+
+        $connection = $this->em->getConnection();
+        $data = [];
+        $sQ = "SELECT * FROM pet WHERE id = {$petId} ";
+        $query = $connection->prepare($sQ);
+        $query->execute();
+        $results = $query->fetchAll();
+
+        if (count($results) > 0) {
+           $data = $results[0];
+        }
+        return $data;
+    }
+
     public function saveRowPet($request)
     {
         $response = [];
@@ -41,7 +57,7 @@ class PetRepository extends ServiceEntityRepository
             ->setPhotoUrls($request["photoUrls"]);
 
         $errors = $this->validateData($pet);
-       
+
         if (count($errors) > 0) {
             $response = [
                 "success" => "false",
@@ -71,8 +87,6 @@ class PetRepository extends ServiceEntityRepository
             ];
             $this->em->persist($pet);
             $this->em->flush();
-
-        
         }
         return $response;
     }

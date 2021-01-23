@@ -33,9 +33,8 @@ class PetController extends AbstractController
     public function getPetById(int $petId): JsonResponse
     {
         $response = [];
-        $pet = $this->petRepository->findOneBy(['id' => $petId]);
-        // echo $petId;exit;
-        if (!isset($pet)) {
+        $pet = $this->petRepository->getPetById($petId);
+        if (empty($pet)) {
             $codeStatus = $this->apiResponseRepository->findOneBy(['code' => 404]);
             $response = [
                 "message" => $codeStatus->getMessage(),
@@ -46,10 +45,10 @@ class PetController extends AbstractController
             $response = [
                 "message" => $codeStatus->getMessage(),
                 "status" => $codeStatus->getCode(),
-                "data" => ""
+                "data" => $pet
             ];
         }
-        return new JsonResponse(['message' => $codeStatus->getMessage(), "status" => $codeStatus->getCode()]);
+        return new JsonResponse($response);
     }
 
     /**

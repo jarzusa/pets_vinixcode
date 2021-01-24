@@ -8,8 +8,10 @@ use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\ORM\EntityManagerInterface;
 use App\Repository\CategoryRepository;
+use App\Repository\TagRepository;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * @method Pet|null find($id, $lockMode = null, $lockVersion = null)
@@ -23,26 +25,30 @@ class PetRepository extends ServiceEntityRepository
         ManagerRegistry $registry,
         EntityManagerInterface $entityManagerInterface,
         CategoryRepository $categoryRepository,
+        TagRepository $tagRepository,
         ValidatorInterface $validator
     ) {
         parent::__construct($registry, Pet::class);
         $this->em = $entityManagerInterface;
         $this->categoryRepo = $categoryRepository;
+        $this->tagRepo = $tagRepository;
         $this->validator = $validator;
     }
 
     public function getPetById(int $petId)
     {
 
-        $connection = $this->em->getConnection();
-        $data = [];
-        $sQ = "SELECT * FROM pet WHERE id = {$petId} ";
-        $query = $connection->prepare($sQ);
-        $query->execute();
-        $results = $query->fetchAll();
+        $query = $this->createQueryBuilder('p')
+            ->select('p, c, t')
+            ->leftJoin('p.category', 'c')
+            ->leftJoin('p.tags', 't')
+            ->where('p.id = :id')
+            ->setParameter('id', $petId);
+        $sql = $query->getQuery();
+        $query = $sql->getArrayResult();
 
-        if (count($results) > 0) {
-           $data = $results[0];
+        if (count($query) > 0) {
+            $data = $query[0];
         }
         return $data;
     }
@@ -68,7 +74,7 @@ class PetRepository extends ServiceEntityRepository
             if (isset($request["category"])) {
                 $category = $this->categoryRepo->findOneBy(["id" => $request["category"]["id"]]);
                 if (!$category) {
-                    throw new Exception("Category Invalid", 1);
+                    throw new \Exception("Category Invalid", 1);
                 }
                 $pet->setCategory($category);
             }
@@ -87,6 +93,70 @@ class PetRepository extends ServiceEntityRepository
             ];
             $this->em->persist($pet);
             $this->em->flush();
+        }
+        return $response;
+    }
+
+    public function updateRowPet($request)
+    {
+        $response = [];
+        $query = $this->createQueryBuilder('p')
+            ->select('p, c, t')
+            ->leftJoin('p.category', 'c')
+            ->leftJoin('p.tags', 't')
+            ->where('p.id = :id')
+            ->setParameter('id', $request['id']);
+        $sql = $query->getQuery();
+        $pet = $sql->getResult();
+
+        if (count($pet) > 0) {
+            foreach ($pet as $result) {
+                $result->setName($request['name']);
+                $result->setPhotoUrls($request['photoUrls']);
+                $result->setStatus($request['status']);
+
+                $errors = $this->validateData($result);
+                if (count($errors) > 0) {
+                    $response = [
+                        "success" => "false",
+                    ];
+                } else {
+                    if (isset($request["category"])) {
+                        $category = $this->categoryRepo->findOneBy(["id" => $request["category"]["id"]]);
+                        if (!$category) {
+                            throw new \Exception("Category Invalid", 1);
+                        }
+                        $result->setCategory($category);
+                    }
+                    if (isset($request["tags"])) {
+                        if(count($result->getTags()) > 0){
+                            foreach ($result->getTags() as $tag) {
+                                $result->removeTag($tag);
+                                $this->em->flush();
+                            }
+                        }
+                        foreach ($request["tags"] as $key => $t) {
+                            $tag = $this->tagRepo->findOneBy(["id" => $t["id"]]);
+                            if (!$tag) {
+                                $tag = new Tag();
+                                $tag->setName($t["name"]);
+                                $this->em->persist($tag);
+                                $this->em->flush();
+                            }
+                            $result->addTag($tag);
+                        }
+                    }
+                    $this->em->flush();
+                    $response = [
+                        "success" => "true",
+                    ];
+                }
+            }
+        } else {
+            $response = [
+                "success" => "false",
+                "not found pet" => "404"
+            ];
         }
         return $response;
     }

@@ -30,22 +30,30 @@ class PetController extends AbstractController
     /**
      * @Route("/pet/{petId}", methods={"GET"}, name="get_pet_byId")
      */
-    public function getPetById(int $petId): JsonResponse
+    public function getPetById($petId): JsonResponse
     {
         $response = [];
-        $pet = $this->petRepository->getPetById($petId);
-        if (empty($pet)) {
-            $codeStatus = $this->apiResponseRepository->findOneBy(['code' => 404]);
+        if (is_numeric($petId)) {
+            $pet = $this->petRepository->getPetById($petId);
+            if (empty($pet)) {
+                $codeStatus = $this->apiResponseRepository->findOneBy(['code' => 404]);
+                $response = [
+                    "message" => $codeStatus->getMessage(),
+                    "status" => $codeStatus->getCode()
+                ];
+            } else {
+                $codeStatus = $this->apiResponseRepository->findOneBy(['code' => 200]);
+                $response = [
+                    "message" => $codeStatus->getMessage(),
+                    "status" => $codeStatus->getCode(),
+                    "data" => $pet
+                ];
+            }
+        } else {
+            $codeStatus = $this->apiResponseRepository->findOneBy(['code' => 400]);
             $response = [
                 "message" => $codeStatus->getMessage(),
                 "status" => $codeStatus->getCode()
-            ];
-        } else {
-            $codeStatus = $this->apiResponseRepository->findOneBy(['code' => 200]);
-            $response = [
-                "message" => $codeStatus->getMessage(),
-                "status" => $codeStatus->getCode(),
-                "data" => $pet
             ];
         }
         return new JsonResponse($response);
@@ -58,18 +66,67 @@ class PetController extends AbstractController
     {
         $data = json_decode($request->getContent(), true);
 
-        if (!isset($data['name']) && !isset($data['photoUrls'])) {
+        $petSaved = $this->petRepository->saveRowPet($data);
+        if ($petSaved["success"] == "false") {
             $codeStatus = $this->apiResponseRepository->findOneBy(['code' => 405]);
         } else {
-            
-            $petSaved = $this->petRepository->saveRowPet($data);
-            if ($petSaved["success"] == "false") {
-                $codeStatus = $this->apiResponseRepository->findOneBy(['code' => 405]);
-            } else {
-                $codeStatus = $this->apiResponseRepository->findOneBy(['code' => 200]);
-            }
-            
+            $codeStatus = $this->apiResponseRepository->findOneBy(['code' => 200]);
         }
+
         return new JsonResponse(['message' => $codeStatus->getMessage(), "status" => $codeStatus->getCode()]);
+    }
+
+    /**
+     * @Route("/pet", methods={"PUT"}, name="updatePet")
+     */
+    public function updatePet(Request $request): JsonResponse
+    {
+        $response = [];
+        $data = json_decode($request->getContent(), true);
+        if (!empty($data)) {
+            if (is_numeric($data['id'])) {
+                $pet = $this->petRepository->findOneBy(['id' => $data['id']]);
+                if (!isset($pet)) {
+                    $codeStatus = $this->apiResponseRepository->findOneBy(['code' => 404]);
+                    $response = [
+                        "message" => $codeStatus->getMessage(),
+                        "status" => $codeStatus->getCode()
+                    ];
+                } else {
+                    $petUpdate = $this->petRepository->updateRowPet($data);
+                    // print_r($petUpdate);exit;
+                    if ($petUpdate["success"] == "false") {
+                        if (isset($petUpdate["not found pet"])) {
+                            $codeStatus = $this->apiResponseRepository->findOneBy(['code' => 404]);
+                        } else {
+                            $codeStatus = $this->apiResponseRepository->findOneBy(['code' => 405]);
+                        }
+                    } else {
+                        $codeStatus = $this->apiResponseRepository->findOneBy(['code' => 200]);
+                    }
+
+                    $response = [
+                        "message" => $codeStatus->getMessage(),
+                        "status" => $codeStatus->getCode()
+                    ];
+                }
+            } else {
+                $codeStatus = $this->apiResponseRepository->findOneBy(['code' => 400]);
+                $response = [
+                    "message" => $codeStatus->getMessage(),
+                    "status" => $codeStatus->getCode()
+                ];
+            }
+        } else {
+            $codeStatus = $this->apiResponseRepository->findOneBy(['code' => 400]);
+            $response = [
+                "message" => $codeStatus->getMessage(),
+                "status" => $codeStatus->getCode()
+            ];
+        }
+
+        // print_r($response);
+        // exit;
+        return new JsonResponse($response);
     }
 }

@@ -40,7 +40,7 @@ class Pet
     private $category;
 
     /**
-     * @ORM\Column(type="string", length=3000, nullable=false)
+     * @ORM\Column(type="string", length=500000, nullable=false)
      * @Assert\NotBlank(message="photoUrls empty")
      */
     private $photoUrls;

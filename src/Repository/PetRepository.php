@@ -37,13 +37,31 @@ class PetRepository extends ServiceEntityRepository
 
     public function getPetById(int $petId)
     {
-
+        $data = [];
         $query = $this->createQueryBuilder('p')
             ->select('p, c, t')
             ->leftJoin('p.category', 'c')
             ->leftJoin('p.tags', 't')
             ->where('p.id = :id')
             ->setParameter('id', $petId);
+        $sql = $query->getQuery();
+        $query = $sql->getArrayResult();
+
+        if (count($query) > 0) {
+            $data = $query[0];
+        }
+        return $data;
+    }
+
+    public function getPetByStatus(string $status)
+    {
+        $data = [];
+        $query = $this->createQueryBuilder('p')
+            ->select('p, c, t')
+            ->leftJoin('p.category', 'c')
+            ->leftJoin('p.tags', 't')
+            ->where('p.status = :status')
+            ->setParameter('status', $status);
         $sql = $query->getQuery();
         $query = $sql->getArrayResult();
 
@@ -156,6 +174,23 @@ class PetRepository extends ServiceEntityRepository
             $response = [
                 "success" => "false",
                 "not found pet" => "404"
+            ];
+        }
+        return $response;
+    }
+
+    public function removePetById($petObject)
+    {
+        $response = [];
+        try {
+            $this->em->remove($petObject);
+            $this->em->flush();
+            $response = [
+                "success" => "true",
+            ];
+        } catch (\Throwable $th) {
+            $response = [
+                "success" => "false",
             ];
         }
         return $response;

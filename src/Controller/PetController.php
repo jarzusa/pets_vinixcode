@@ -27,6 +27,48 @@ class PetController extends AbstractController
         $this->apiResponseRepository = $apiResponseRepository;
     }
 
+
+    /**
+     * @Route("/pet/findByStatus", methods={"GET"}, name="getPetByStatus")
+     */
+    public function getPetByStatus(Request $request): JsonResponse
+    {
+        $response = [];
+        $status = $request->query->get('status');
+        if ($status) {
+            if ($status != "available" && $status != "pending" && $status != "sold") {
+                $codeStatus = $this->apiResponseRepository->findOneBy(['code' => 400]);
+                $response = [
+                    "message" => "Invalid status value",
+                    "status" => $codeStatus->getCode()
+                ];
+            } else {
+                $pet = $this->petRepository->getPetByStatus($status);
+                if (empty($pet)) {
+                    $codeStatus = $this->apiResponseRepository->findOneBy(['code' => 404]);
+                    $response = [
+                        "message" => $codeStatus->getMessage(),
+                        "status" => $codeStatus->getCode()
+                    ];
+                } else {
+                    $codeStatus = $this->apiResponseRepository->findOneBy(['code' => 200]);
+                    $response = [
+                        "message" => $codeStatus->getMessage(),
+                        "status" => $codeStatus->getCode(),
+                        "data" => $pet
+                    ];
+                }
+            }
+        } else {
+            $codeStatus = $this->apiResponseRepository->findOneBy(['code' => 400]);
+            $response = [
+                "message" => "Invalid status value",
+                "status" => $codeStatus->getCode()
+            ];
+        }
+        return new JsonResponse($response);
+    }
+
     /**
      * @Route("/pet/{petId}", methods={"GET"}, name="get_pet_byId")
      */
@@ -127,6 +169,74 @@ class PetController extends AbstractController
 
         // print_r($response);
         // exit;
+        return new JsonResponse($response);
+    }
+
+    /**
+     * @Route("/pet/{petId}", methods={"DELETE"}, name="deletePet")
+     */
+    public function removePet(Request $request, $petId): JsonResponse
+    {
+        $response = [];
+        $apiKey = $request->headers->get('api_key');
+
+        if ($apiKey == $_SERVER['APP_SECRET']) {
+            if (is_numeric($petId)) {
+                $pet = $this->petRepository->findOneBy(['id' => $petId]);
+                if (empty($pet)) {
+                    $codeStatus = $this->apiResponseRepository->findOneBy(['code' => 404]);
+                    $response = [
+                        "message" => $codeStatus->getMessage(),
+                        "status" => $codeStatus->getCode()
+                    ];
+                } else {
+                    $petRemove = $this->petRepository->removePetById($pet);
+                    if ($petRemove["success"] == "false") {
+                        $codeStatus = $this->apiResponseRepository->findOneBy(['code' => 400]);
+                        $response = [
+                            "message" => $codeStatus->getMessage(),
+                            "status" => $codeStatus->getCode()
+                        ];
+                    } else {
+                        $codeStatus = $this->apiResponseRepository->findOneBy(['code' => 200]);
+                        $response = [
+                            "message" => $codeStatus->getMessage(),
+                            "status" => $codeStatus->getCode(),
+                        ];
+                    }
+                }
+            } else {
+                $codeStatus = $this->apiResponseRepository->findOneBy(['code' => 400]);
+                $response = [
+                    "message" => $codeStatus->getMessage(),
+                    "status" => $codeStatus->getCode()
+                ];
+            }
+        }
+        return new JsonResponse($response);
+    }
+
+    /**
+     * @Route("/pet/findAllPets", methods={"GET"}, name="deletePet")
+     */
+    public function getAllPets(): JsonResponse
+    {
+        $response = [];
+            $pet = $this->petRepository->findAllPets();
+            if (empty($pet)) {
+                $codeStatus = $this->apiResponseRepository->findOneBy(['code' => 404]);
+                $response = [
+                    "message" => $codeStatus->getMessage(),
+                    "status" => $codeStatus->getCode()
+                ];
+            } else {
+                $codeStatus = $this->apiResponseRepository->findOneBy(['code' => 200]);
+                $response = [
+                    "message" => $codeStatus->getMessage(),
+                    "status" => $codeStatus->getCode(),
+                    "data" => $pet
+                ];
+            }
         return new JsonResponse($response);
     }
 }

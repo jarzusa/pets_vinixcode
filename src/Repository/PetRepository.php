@@ -53,6 +53,22 @@ class PetRepository extends ServiceEntityRepository
         return $data;
     }
 
+    public function findAllPets()
+    {
+        $data = [];
+        $query = $this->createQueryBuilder('p')
+            ->select('p, c, t')
+            ->leftJoin('p.category', 'c')
+            ->leftJoin('p.tags', 't');
+        $sql = $query->getQuery();
+        $query = $sql->getArrayResult();
+
+        if (count($query) > 0) {
+            $data = $query;
+        }
+        return $data;
+    }
+
     public function getPetByStatus(string $status)
     {
         $data = [];
@@ -75,10 +91,16 @@ class PetRepository extends ServiceEntityRepository
     {
         $response = [];
         $pet = new Pet();
-        $pet
-            ->setName($request["name"])
-            ->setStatus($request["status"])
-            ->setPhotoUrls($request["photoUrls"]);
+
+        if ($request["name"]) {
+            $pet->setName($request["name"]);
+        }
+        if ($request["status"]) {
+            $pet->setStatus($request["status"]);
+        }
+        if ($request["photoUrls"]) {
+            $pet->setPhotoUrls($request["photoUrls"]);
+        }
 
         $errors = $this->validateData($pet);
 
@@ -111,6 +133,13 @@ class PetRepository extends ServiceEntityRepository
             ];
             $this->em->persist($pet);
             $this->em->flush();
+
+            if ($pet->getId()) {
+                $data = $this->getPetById($pet->getId());
+                if (!empty($data)) {
+                    $response["data"] = $data;
+                }
+            }
         }
         return $response;
     }
@@ -147,7 +176,7 @@ class PetRepository extends ServiceEntityRepository
                         $result->setCategory($category);
                     }
                     if (isset($request["tags"])) {
-                        if(count($result->getTags()) > 0){
+                        if (count($result->getTags()) > 0) {
                             foreach ($result->getTags() as $tag) {
                                 $result->removeTag($tag);
                                 $this->em->flush();
@@ -208,32 +237,5 @@ class PetRepository extends ServiceEntityRepository
 
         return $errorMessage;
     }
-    // /**
-    //  * @return Pet[] Returns an array of Pet objects
-    //  */
-    /*
-    public function findByExampleField($value)
-    {
-        return $this->createQueryBuilder('p')
-            ->andWhere('p.exampleField = :val')
-            ->setParameter('val', $value)
-            ->orderBy('p.id', 'ASC')
-            ->setMaxResults(10)
-            ->getQuery()
-            ->getResult()
-        ;
-    }
-    */
 
-    /*
-    public function findOneBySomeField($value): ?Pet
-    {
-        return $this->createQueryBuilder('p')
-            ->andWhere('p.exampleField = :val')
-            ->setParameter('val', $value)
-            ->getQuery()
-            ->getOneOrNullResult()
-        ;
-    }
-    */
 }

@@ -27,6 +27,29 @@ class PetController extends AbstractController
         $this->apiResponseRepository = $apiResponseRepository;
     }
 
+    /**
+     * @Route("/pet/findAllPets", methods={"GET"}, name="findAllPet")
+     */
+    public function getAllPets(): JsonResponse
+    {
+        $response = [];
+            $pet = $this->petRepository->findAllPets();
+            if (empty($pet)) {
+                $codeStatus = $this->apiResponseRepository->findOneBy(['code' => 404]);
+                $response = [
+                    "message" => $codeStatus->getMessage(),
+                    "status" => $codeStatus->getCode()
+                ];
+            } else {
+                $codeStatus = $this->apiResponseRepository->findOneBy(['code' => 200]);
+                $response = [
+                    "message" => $codeStatus->getMessage(),
+                    "status" => $codeStatus->getCode(),
+                    "data" => $pet
+                ];
+            }
+        return new JsonResponse($response);
+    }
 
     /**
      * @Route("/pet/findByStatus", methods={"GET"}, name="getPetByStatus")
@@ -106,16 +129,26 @@ class PetController extends AbstractController
      */
     public function addPet(Request $request): JsonResponse
     {
+        $response = [];
         $data = json_decode($request->getContent(), true);
-
+        // print_r($data);exit;
         $petSaved = $this->petRepository->saveRowPet($data);
         if ($petSaved["success"] == "false") {
-            $codeStatus = $this->apiResponseRepository->findOneBy(['code' => 405]);
+            $codeStatus = $this->apiResponseRepository->findOneBy(['code' => 405]);;
+            $response = [
+                "message" => $codeStatus->getMessage(),
+                "status" => $codeStatus->getCode()
+            ];
         } else {
-            $codeStatus = $this->apiResponseRepository->findOneBy(['code' => 200]);
+            $codeStatus = $this->apiResponseRepository->findOneBy(['code' => 200]);;
+            $response = [
+                "message" => $codeStatus->getMessage(),
+                "status" => $codeStatus->getCode(),
+                "data" => $petSaved["data"]
+            ];
         }
 
-        return new JsonResponse(['message' => $codeStatus->getMessage(), "status" => $codeStatus->getCode()]);
+        return new JsonResponse($response);
     }
 
     /**
@@ -178,8 +211,8 @@ class PetController extends AbstractController
     public function removePet(Request $request, $petId): JsonResponse
     {
         $response = [];
-        $apiKey = $request->headers->get('api_key');
-
+        $apiKey = $request->headers->get('Authorization');
+        
         if ($apiKey == $_SERVER['APP_SECRET']) {
             if (is_numeric($petId)) {
                 $pet = $this->petRepository->findOneBy(['id' => $petId]);
@@ -212,31 +245,12 @@ class PetController extends AbstractController
                     "status" => $codeStatus->getCode()
                 ];
             }
+        } else {
+            $response = [
+                "message" => "Api key is invalid",
+                "status" => 500
+            ];
         }
-        return new JsonResponse($response);
-    }
-
-    /**
-     * @Route("/pet/findAllPets", methods={"GET"}, name="deletePet")
-     */
-    public function getAllPets(): JsonResponse
-    {
-        $response = [];
-            $pet = $this->petRepository->findAllPets();
-            if (empty($pet)) {
-                $codeStatus = $this->apiResponseRepository->findOneBy(['code' => 404]);
-                $response = [
-                    "message" => $codeStatus->getMessage(),
-                    "status" => $codeStatus->getCode()
-                ];
-            } else {
-                $codeStatus = $this->apiResponseRepository->findOneBy(['code' => 200]);
-                $response = [
-                    "message" => $codeStatus->getMessage(),
-                    "status" => $codeStatus->getCode(),
-                    "data" => $pet
-                ];
-            }
         return new JsonResponse($response);
     }
 }
